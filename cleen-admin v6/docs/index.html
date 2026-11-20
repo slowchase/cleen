@@ -1,0 +1,7 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Cleen Daily</title><link rel="stylesheet" href="styles.css"></head><body data-page="home">
+<header><a class="brand" href="index.html">Cleen</a><button id="logout" class="text-button" hidden>Sign out</button></header>
+<div id="notice" role="status" aria-live="polite"></div>
+<section id="login" class="login" hidden><h1>Daily</h1><form id="loginForm"><label>Password<input id="password" type="password" autocomplete="current-password" required></label><button>Open Cleen</button></form></section>
+<main id="app" hidden><div class="date" id="date"></div><section id="verseBlock" class="verse" hidden><blockquote id="verseQuote"></blockquote><div id="verseCitation"></div><div class="cross" aria-label="Cross"><span></span></div></section>
+<nav class="home-menu" aria-label="Daily navigation"><a class="menu-button" href="tasks.html">Daily Tasks</a><a class="menu-button" href="end-of-day.html">End of Day</a></nav></main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script><script src="config.js"></script><script src="app.js"></script></body></html>
