@@ -1,5 +1,5 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Daily Tasks · Cleen</title><link rel="stylesheet" href="styles.css"></head><body data-page="tasks">
-<header><a class="brand" href="index.html">Cleen</a><button id="logout" class="text-button" hidden>Sign out</button></header>
+<header><a class="brand" href="index.html">Cleen</a><div class="daily-header-actions"><a class="area-switch" href="admin/index.html" aria-label="Switch to Cleen Admin">Admin ↗</a><button id="logout" class="text-button" hidden>Sign out</button></div></header>
 <div id="notice" role="status" aria-live="polite"></div>
 <section id="login" class="login" hidden><h1>Daily</h1><form id="loginForm"><label>Password<input id="password" type="password" autocomplete="current-password" required></label><button>Open Cleen</button></form></section>
 <main id="app" hidden><div class="date" id="date"></div><h1>Daily Tasks</h1><div class="nav"><button class="active" data-tab="task">Tasks <span id="taskCount"></span></button><span>|</span><button data-tab="quality">Quality</button><span>|</span><button data-tab="buy">To Buy</button></div><p class="task-hint">Select a task to reveal more info</p><div id="list"></div><a class="back-button" href="index.html">Back to Home</a></main>

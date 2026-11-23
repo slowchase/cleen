@@ -3,11 +3,24 @@
 const $=id=>document.getElementById(id),cfg=window.CLEEN_CONFIG||{},page=document.body.dataset.page;
 let client,user=null,tasks=[],marked={},tab='task',products=[],instructions=[];
 const notice=s=>{const e=$('notice');e.textContent=s;e.className='visible';clearTimeout(notice.timer);notice.timer=setTimeout(()=>e.className='',5500)};
-if(!window.supabase?.createClient||!cfg.SUPABASE_URL||cfg.SUPABASE_URL.includes('YOUR_')||!cfg.SUPABASE_PUBLISHABLE_KEY||cfg.SUPABASE_PUBLISHABLE_KEY.includes('YOUR_')||!cfg.CLEANER_LOGIN_EMAIL||cfg.CLEANER_LOGIN_EMAIL.includes('CLEANER_')){$('login').hidden=false;notice('Configure docs/config.js and check your internet connection.');return}
+if(!window.supabase?.createClient||!cfg.SUPABASE_URL||cfg.SUPABASE_URL.includes('YOUR_')||!cfg.SUPABASE_PUBLISHABLE_KEY||cfg.SUPABASE_PUBLISHABLE_KEY.includes('YOUR_')){$('login').hidden=false;notice('Configure docs/config.js and check your internet connection.');return}
 client=window.supabase.createClient(cfg.SUPABASE_URL,cfg.SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,storageKey:'cleen-daily-v3'}});
+
+// The email is stored as a Supabase Edge Function secret, never in GitHub Pages code.
+async function cleenPasswordLogin(supabaseClient,role,password){
+ const response=await fetch(`${cfg.SUPABASE_URL.replace(/\/$/,'')}/functions/v1/cleen-login`,{
+   method:'POST',headers:{'Content-Type':'application/json','apikey':cfg.SUPABASE_PUBLISHABLE_KEY},
+   body:JSON.stringify({role,password})
+ });
+ const payload=await response.json().catch(()=>({}));
+ if(!response.ok||!payload.access_token||!payload.refresh_token)throw Error(payload.error||'Sign-in failed. Check your password and try again.');
+ return payload;
+}
+
 const get=async q=>{const {data,error}=await q;if(error)throw error;return data};
 const elem=(tag,text,cls)=>{const x=document.createElement(tag);if(text!=null)x.textContent=text;if(cls)x.className=cls;return x};
 function show(ok){$('login').hidden=ok;$('app').hidden=!ok;$('logout').hidden=!ok}
+async function ensureDailyRole(){if(!user)return false;const {data,error}=await client.from('members').select('role').eq('user_id',user.id).single();if(error||data?.role!=='cleaner'){show(false);notice('This page requires the Daily password.');return false;}return true}
 async function photoUrl(path){return(await get(client.storage.from('cleen-photos').createSignedUrl(path,1200))).signedUrl}
 function setDate(){const d=$('date');if(d)d.textContent=new Date().toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'})}
 async function load(){try{setDate();if(page==='home'){
@@ -74,10 +87,10 @@ function render(){if(page!=='tasks')return;document.querySelectorAll('[data-tab]
  article.append(row,details);list.append(article)
  }}
 async function upload(file){if(file.size>15*1024*1024)throw Error('Photo must be 15MB or smaller.');let blob=file,ext=file.name.split('.').pop()?.toLowerCase()||'jpg';if('createImageBitmap'in window&&!/heic|heif/.test(file.type)){try{const bmp=await createImageBitmap(file);const scale=Math.min(1,1600/Math.max(bmp.width,bmp.height));const c=document.createElement('canvas');c.width=Math.round(bmp.width*scale);c.height=Math.round(bmp.height*scale);c.getContext('2d').drawImage(bmp,0,0,c.width,c.height);bmp.close();const out=await new Promise(resolve=>c.toBlob(resolve,'image/jpeg',.82));if(out){blob=out;ext='jpg'}}catch(e){console.warn(e)}}const path=`${user.id}/${crypto.randomUUID()}.${ext}`;await get(client.storage.from('cleen-photos').upload(path,blob,{contentType:blob.type||'image/jpeg'}));return path}
-$('loginForm').addEventListener('submit',async e=>{e.preventDefault();const button=e.submitter;button.disabled=true;try{const {error}=await client.auth.signInWithPassword({email:cfg.CLEANER_LOGIN_EMAIL,password:$('password').value});if(error)throw error;$('password').value=''}catch(err){notice(err.message)}finally{button.disabled=false}});
+$('loginForm').addEventListener('submit',async e=>{e.preventDefault();const button=e.submitter;button.disabled=true;try{const session=await cleenPasswordLogin(client,'cleaner',$('password').value);const {error}=await client.auth.setSession({access_token:session.access_token,refresh_token:session.refresh_token});if(error)throw error;$('password').value=''}catch(err){notice(err.message)}finally{button.disabled=false}});
 $('logout').addEventListener('click',()=>client.auth.signOut());
 if(page==='tasks')document.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>{tab=b.dataset.tab;render()}));
 if(page==='report')$('reportForm').addEventListener('submit',async e=>{e.preventDefault();const button=e.submitter;button.disabled=true;try{const f=$('reportPhoto').files[0];const path=f?await upload(f):null;await get(client.from('reports').insert({user_id:user.id,notes:$('reportNotes').value.trim(),photo_path:path,photo_description:$('photoDescription').value.trim()}));$('reportForm').reset();notice('Report submitted.')}catch(err){notice(err.message)}finally{button.disabled=false}});
-client.auth.onAuthStateChange((_event,session)=>{if(session?.user?.id!==user?.id){user=session?.user||null;show(!!user);if(user)setTimeout(load,0)}});
-try{const {data:{session}}=await client.auth.getSession();user=session?.user||null;show(!!user);if(user)await load()}catch(e){notice(e.message);show(false)}
+client.auth.onAuthStateChange((_event,session)=>{if(session?.user?.id!==user?.id){user=session?.user||null;show(false);if(user)setTimeout(async()=>{if(await ensureDailyRole()){show(true);await load()}},0)}});
+try{const {data:{session}}=await client.auth.getSession();user=session?.user||null;show(false);if(user&&await ensureDailyRole()){show(true);await load()}}catch(e){notice(e.message);show(false)}
 })();
